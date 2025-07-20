@@ -85,13 +85,40 @@ async def on_message(message):
     await bot.process_commands(message)
 
 @bot.command()
-async def play(ctx, *, search):
-    if ctx.author.voice and ctx.author.voice.channel:
-        await join_and_play(ctx.author.voice.channel)
-        await play_url(vc_client, search)
-        await ctx.send(f"▶️ Now playing: {search}")
+async def play(ctx, *, search: str = None):
+    if not search:
+        await ctx.send("❌ Please provide a YouTube link or search query.")
+        return
+
+    if ctx.author.voice:
+        vc_channel = ctx.author.voice.channel
+        vc = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+
+        if not vc or not vc.is_connected():
+            vc = await vc_channel.connect()
+
+        try:
+            ydl_opts = {
+                'format': 'bestaudio',
+                'noplaylist': True,
+                'quiet': True,
+                'extract_flat': False,
+                'outtmpl': 'song.%(ext)s',
+            }
+
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(search, download=True)
+                url = ydl.prepare_filename(info)
+
+            vc.stop()  # Stop aura radio
+            vc.play(discord.FFmpegPCMAudio(source=url), after=lambda e: asyncio.run_coroutine_threadsafe(start_radio(vc), bot.loop))
+            await ctx.send(f"🎵 Now playing: {info.get('title')}")
+        except Exception as e:
+            await ctx.send("⚠️ Failed to play from YouTube. Playing AURA instead.")
+            print(f"[YT ERROR] {e}")
+            await start_radio(vc)
     else:
-        await ctx.send("❌ You're not in a voice channel!")
+        await ctx.send("⚠️ Join a VC first!")
 
 @bot.command()
 async def pause(ctx):
