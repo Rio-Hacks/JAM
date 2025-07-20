@@ -9,7 +9,7 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")  # Use environment variable or paste your
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-VC_CHANNEL_ID = 123456789012345678  # 🔁 Replace with your voice channel ID
+VC_CHANNEL_ID = 1354365519641313480  # 🔁 Replace with your voice channel ID
 
 phonk_playlist = [
     "https://www.youtube.com/watch?v=1cA8N8LBVf8",
