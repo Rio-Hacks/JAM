@@ -12,9 +12,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 VC_CHANNEL_ID = 1354365519641313480  # 🔁 Replace with your voice channel ID
 
 phonk_playlist = [
-    "https://www.youtube.com/watch?v=1cA8N8LBVf8",
-    "https://www.youtube.com/watch?v=HzmSHZoEOf8",
-    "https://www.youtube.com/watch?v=wGzJfFzaGTs",
+    "https://youtu.be/2dZwhUV898A?si=nbslaEOKRRGtMCVw",
+    "https://youtu.be/VZufD5Y4KfQ?si=cuumX54scE42VPzO",
+    "https://youtu.be/Y_FnFdvKkV8?si=t9AN9fyN_OOj3VOu",
 ]
 
 async def play_phonk(vc):
