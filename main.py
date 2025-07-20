@@ -1,46 +1,25 @@
-import os
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import asyncio
 import yt_dlp
+import os
 from keep_alive import keep_alive
+
+TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+GUILD_ID = 1331178993390718999  # Optional: add for optimization
+MUSIC_VC_ID = 1354365519641313480
+PHONK_MP3_URL = "https://github.com/Rio-Hacks/JAM/raw/main/AURA%20%3D%20%E2%99%BE%EF%B8%8F%20_%20VIRAL%20AURA%20MUSIC%20PLAYLIST%202025%20%F0%9F%94%A5%201%20HOUR.mp3"
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-PHONK_PLAYLIST = [
-    "https://youtu.be/2dZwhUV898A?si=nbslaEOKRRGtMCVw",
-    "https://youtu.be/VZufD5Y4KfQ?si=cuumX54scE42VPzO",
-    "https://youtu.be/Y_FnFdvKkV8?si=t9AN9fyN_OOj3VOu"
-]
-
-current_song = None
-song_queue = asyncio.Queue()
-is_radio_mode = True
-
-async def join_and_play(vc_channel):
-    global is_radio_mode
-    if bot.voice_clients:
-        vc = bot.voice_clients[0]
-        if vc.channel.id != vc_channel.id:
-            await vc.move_to(vc_channel)
-    else:
-        vc = await vc_channel.connect()
-
-    await start_radio(vc)
-
-async def start_radio(vc):
-    global is_radio_mode
-    is_radio_mode = True
-    while is_radio_mode and vc.is_connected():
-        for url in PHONK_PLAYLIST:
-            if not is_radio_mode:
-                return
-            await play_url(vc, url)
-            while vc.is_playing():
-                await asyncio.sleep(1)
+vc_client = None
+current_vc = None
+radio_mode = True
 
 async def play_url(vc, url):
+    global radio_mode
+    radio_mode = False
     ydl_opts = {
         'format': 'bestaudio/best',
         'quiet': True,
@@ -55,71 +34,88 @@ async def play_url(vc, url):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(info).replace(".webm", ".mp3").replace(".m4a", ".mp3")
+    vc.play(discord.FFmpegPCMAudio(filename), after=lambda e: asyncio.run_coroutine_threadsafe(start_radio(vc), bot.loop))
 
-    vc.play(discord.FFmpegPCMAudio(filename), after=lambda e: print("⏭️ Finished."))
+async def start_radio(vc):
+    global radio_mode
+    if vc.is_playing():
+        vc.stop()
+    radio_mode = True
+    vc.play(discord.FFmpegPCMAudio(PHONK_MP3_URL), after=lambda e: asyncio.run_coroutine_threadsafe(start_radio(vc), bot.loop))
+
+async def join_and_play(vc_channel):
+    global vc_client, current_vc
+    if vc_client and vc_client.is_connected():
+        await vc_client.move_to(vc_channel)
+    else:
+        vc_client = await vc_channel.connect()
+    current_vc = vc_channel
+    await start_radio(vc_client)
 
 @bot.event
 async def on_ready():
-    print(f"✅ Bot is ready as {bot.user}")
-
-@bot.event
-async def on_message(message):
-    if message.author.bot:
-        return
-
-    if bot.user in message.mentions and message.author.voice and message.author.voice.channel:
-        await join_and_play(message.author.voice.channel)
-        await message.channel.send("🎶 Bot summoned and started playing Phonk radio!")
-
-    await bot.process_commands(message)
+    print(f"✅ Bot is ready: {bot.user}")
+    check_empty_vc.start()
 
 @bot.event
 async def on_voice_state_update(member, before, after):
-    vc = discord.utils.get(bot.voice_clients, guild=member.guild)
-    if vc and vc.channel and len(vc.channel.members) == 1:
-        await vc.disconnect()
-        print("👋 Disconnected because VC is empty.")
+    if after.channel and after.channel.id == MUSIC_VC_ID and not member.bot:
+        if not any(m for m in after.channel.members if not m.bot):
+            return
+        await join_and_play(after.channel)
+
+@tasks.loop(seconds=15)
+async def check_empty_vc():
+    global vc_client
+    if vc_client and vc_client.channel:
+        if len([m for m in vc_client.channel.members if not m.bot]) == 0:
+            await vc_client.disconnect()
+            print("👋 Left VC as it was empty.")
+
+@bot.event
+async def on_message(message):
+    global vc_client
+    if message.author.bot:
+        return
+
+    if bot.user.mentioned_in(message):
+        if message.author.voice and message.author.voice.channel:
+            await join_and_play(message.author.voice.channel)
+
+    await bot.process_commands(message)
 
 @bot.command()
 async def play(ctx, *, search):
-    global is_radio_mode
-    is_radio_mode = False
-    vc = ctx.author.voice.channel
-    if not ctx.voice_client:
-        await vc.connect()
+    if ctx.author.voice and ctx.author.voice.channel:
+        await join_and_play(ctx.author.voice.channel)
+        await play_url(vc_client, search)
+        await ctx.send(f"▶️ Now playing: {search}")
     else:
-        await ctx.voice_client.move_to(vc)
-
-    ydl_opts = {'quiet': True, 'format': 'bestaudio', 'default_search': 'ytsearch', 'noplaylist': True}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(search, download=False)
-        url = info['entries'][0]['webpage_url'] if 'entries' in info else info['webpage_url']
-
-    await ctx.send(f"🎵 Playing: {url}")
-    await play_url(ctx.voice_client, url)
-    while ctx.voice_client.is_playing():
-        await asyncio.sleep(1)
-    await start_radio(ctx.voice_client)  # Resume radio
+        await ctx.send("❌ You're not in a voice channel!")
 
 @bot.command()
-async def stop(ctx):
-    global is_radio_mode
-    is_radio_mode = False
-    if ctx.voice_client:
-        await ctx.voice_client.disconnect()
-        await ctx.send("🛑 Stopped and left the VC.")
+async def pause(ctx):
+    if vc_client and vc_client.is_playing():
+        vc_client.pause()
+        await ctx.send("⏸️ Paused.")
+
+@bot.command()
+async def resume(ctx):
+    if vc_client and vc_client.is_paused():
+        vc_client.resume()
+        await ctx.send("▶️ Resumed.")
 
 @bot.command()
 async def skip(ctx):
-    if ctx.voice_client and ctx.voice_client.is_playing():
-        ctx.voice_client.stop()
-        await ctx.send("⏭️ Skipped!")
+    if vc_client:
+        vc_client.stop()
+        await ctx.send("⏭️ Skipped.")
 
 @bot.command()
-async def leave(ctx):
-    if ctx.voice_client:
-        await ctx.voice_client.disconnect()
+async def exit(ctx):
+    if vc_client:
+        await vc_client.disconnect()
         await ctx.send("👋 Left the voice channel.")
 
 keep_alive()
-bot.run(os.getenv("DISCORD_BOT_TOKEN"))
+bot.run(TOKEN)
