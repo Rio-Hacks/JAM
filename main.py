@@ -30,34 +30,39 @@ async def play_random(vc):
         vc.play(source, after=lambda e: bot.loop.create_task(play_random(vc)))
         print(f"🎵 Now playing: {song.name}")
     else:
-        print("⚠️ No MP3 songs found in songs folder.")
+        print("⚠️ No songs found in 'songs/' folder.")
+
+async def connect_and_play():
+    guild = bot.get_guild(GUILD_ID)
+    if not guild:
+        print("❌ Guild not found.")
+        return
+
+    channel = guild.get_channel(MUSIC_VC_ID)
+    if not channel:
+        print("❌ Voice channel not found.")
+        return
+
+    vc = discord.utils.get(bot.voice_clients, guild=guild)
+    if not vc or not vc.is_connected():
+        try:
+            vc = await channel.connect()
+            await play_random(vc)
+        except discord.ClientException:
+            print("⚠️ Could not connect (already connected?)")
 
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user} ({bot.user.id})")
-    guild = bot.get_guild(GUILD_ID)
-    if guild:
-        channel = guild.get_channel(MUSIC_VC_ID)
-        if channel:
-            if not discord.utils.get(bot.voice_clients, guild=guild):
-                try:
-                    vc = await channel.connect()
-                    await play_random(vc)
-                except discord.ClientException:
-                    print("⚠️ Already connected or error on connect.")
+    await connect_and_play()
 
 @bot.event
 async def on_voice_state_update(member, before, after):
     if member.bot:
         return
+
     if after.channel and after.channel.id == MUSIC_VC_ID:
-        vc = discord.utils.get(bot.voice_clients, guild=member.guild)
-        if not vc or not vc.is_connected():
-            try:
-                vc = await after.channel.connect()
-                await play_random(vc)
-            except discord.ClientException:
-                print("⚠️ Error joining VC.")
+        await connect_and_play()
 
 @bot.command()
 async def stop(ctx):
