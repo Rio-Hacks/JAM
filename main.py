@@ -3,6 +3,7 @@ import discord
 import random
 from discord.ext import commands
 from discord import FFmpegPCMAudio
+from keep_alive import keep_alive
 
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 MUSIC_VC_ID = 1354365519641313480
@@ -71,5 +72,5 @@ async def exit_command(ctx):
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
         await ctx.send("👋 Left the voice channel.")
-
+keep_alive()
 bot.run(TOKEN)
