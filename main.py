@@ -2,8 +2,8 @@ import os
 import discord
 from discord.ext import commands
 from discord import FFmpegPCMAudio
-from keep_alive import keep_alive
 import yt_dlp
+from keep_alive import keep_alive  # Optional: For Replit-like uptime pings
 
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 MUSIC_VC_ID = 1354365519641313480
@@ -16,18 +16,16 @@ intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
-current_radio = None
 
 @bot.event
 async def on_ready():
-    print(f"✅ Bot is ready: {bot.user} ({bot.user.id})")
+    print(f"✅ Logged in as {bot.user} ({bot.user.id})")
 
 @bot.event
 async def on_voice_state_update(member, before, after):
     if member.bot:
         return
 
-    # Auto-join MUSIC VC and play aura.mp3
     if after.channel and after.channel.id == MUSIC_VC_ID:
         vc = discord.utils.get(bot.voice_clients, guild=member.guild)
         if not vc or not vc.is_connected():
@@ -37,7 +35,7 @@ async def on_voice_state_update(member, before, after):
             except Exception as e:
                 print(f"[AutoJoin Error] {e}")
 
-    # Auto-disconnect when music VC is empty (excluding bots)
+    # Leave if music VC is empty (no humans)
     if before.channel and before.channel.id == MUSIC_VC_ID:
         vc = discord.utils.get(bot.voice_clients, guild=member.guild)
         if vc and len([m for m in vc.channel.members if not m.bot]) == 0:
@@ -60,16 +58,14 @@ async def on_message(message):
     await bot.process_commands(message)
 
 async def play_radio(vc):
-    global current_radio
     if vc.is_playing():
         vc.stop()
-    current_radio = FFmpegPCMAudio(RADIO_FILE)
-    vc.play(current_radio)
+    vc.play(FFmpegPCMAudio(RADIO_FILE))
 
 @bot.command()
 async def play(ctx, *, search: str = None):
     if not search:
-        await ctx.send("❗ Usage: `!play <YouTube URL or song name>`")
+        await ctx.send("❗ Usage: `!play <YouTube link or song name>`")
         return
 
     vc = ctx.voice_client
@@ -77,7 +73,7 @@ async def play(ctx, *, search: str = None):
         if ctx.author.voice:
             vc = await ctx.author.voice.channel.connect()
         else:
-            await ctx.send("⚠️ Join a voice channel first.")
+            await ctx.send("⚠️ You must join a voice channel first.")
             return
 
     if vc.is_playing():
@@ -86,9 +82,9 @@ async def play(ctx, *, search: str = None):
     ydl_opts = {
         'format': 'bestaudio/best',
         'noplaylist': True,
-        'outtmpl': 'song.%(ext)s',
         'quiet': True,
-        'cookiefile': 'cookies.txt'  # ✅ Uses your uploaded cookies
+        'outtmpl': 'song.%(ext)s',
+        'cookiefile': 'cookies.txt'  # ✅ Loads cookies from your uploaded file
     }
 
     try:
@@ -99,36 +95,38 @@ async def play(ctx, *, search: str = None):
             file_path = ydl.prepare_filename(info)
 
         vc.play(FFmpegPCMAudio(file_path))
-        await ctx.send(f"🎵 Now playing: **{info.get('title', 'unknown')}**")
+        await ctx.send(f"🎶 Now playing: **{info.get('title', 'Unknown')}**")
 
     except Exception as e:
-        print(f"[YT ERROR] {e}")
-        await ctx.send("❌ Failed to play YouTube video. Try another or check `cookies.txt`.")
+        print(f"[YT Error] {e}")
+        await ctx.send("❌ Failed to play from YouTube. Try a different song or check your cookies.txt.")
 
 @bot.command()
 async def stop(ctx):
     if ctx.voice_client and ctx.voice_client.is_playing():
         ctx.voice_client.pause()
-        await ctx.send("⏸️ Music paused.")
+        await ctx.send("⏸️ Paused.")
 
 @bot.command()
 async def resume(ctx):
     if ctx.voice_client and ctx.voice_client.is_paused():
         ctx.voice_client.resume()
-        await ctx.send("▶️ Music resumed.")
+        await ctx.send("▶️ Resumed.")
 
 @bot.command()
 async def skip(ctx):
     if ctx.voice_client:
         ctx.voice_client.stop()
-        await ctx.send("⏭️ Skipped current track.")
         await play_radio(ctx.voice_client)
+        await ctx.send("⏭️ Skipped. Resuming radio.")
 
-@bot.command(name="exit")
+@bot.command(name='exit')
 async def exit_command(ctx):
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
-        await ctx.send("👋 Bot disconnected.")
+        await ctx.send("👋 Bot has left the voice channel.")
 
+# Optional: Replit-like keep-alive ping service (only if you're using UptimeRobot)
 keep_alive()
+
 bot.run(TOKEN)
