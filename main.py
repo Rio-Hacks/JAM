@@ -33,7 +33,7 @@ async def play_random(vc):
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
     # Try to join the VC at startup
-    guild = bot.get_guild(YOUR_GUILD_ID)  # Replace with your actual guild ID
+    guild = bot.get_guild(1331178993390718999)  # Replace with your actual guild ID
     if guild:
         vc_channel = guild.get_channel(MUSIC_VC_ID)
         if vc_channel:
