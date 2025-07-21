@@ -7,7 +7,7 @@ from keep_alive import keep_alive  # Optional: For Replit-like uptime pings
 
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 MUSIC_VC_ID = 1354365519641313480
-RADIO_FILE = "https://github.com/Rio-Hacks/JAM/raw/main/AURA%20%3D%20%E2%99%BE%EF%B8%8F%20_%20VIRAL%20AURA%20MUSIC%20PLAYLIST%202025%20%F0%9F%94%A5%201%20HOUR.mp3"
+RADIO_FILE = "AURA = ♾️ _ VIRAL AURA MUSIC PLAYLIST 2025 🔥 1 HOUR.mp3"
 
 intents = discord.Intents.default()
 intents.message_content = True
