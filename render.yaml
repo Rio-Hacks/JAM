@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: music-bot
+    env: python
+    buildCommand: |
+      curl -L https://github.com/ffbinaries/ffbinaries-prebuilt/releases/download/v4.4.1/ffmpeg-linux-64.zip -o ffmpeg.zip
+      unzip ffmpeg.zip -d .
+      chmod +x ffmpeg
+      pip install -r requirements.txt
+    startCommand: python3 main.py
+    envVars:
+      - key: DISCORD_BOT_TOKEN
+        sync: false
