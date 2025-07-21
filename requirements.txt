@@ -1,6 +1,6 @@
 discord.py
 yt_dlp
 flask
-PyNaCl
+pynacl
 pydub
 ffmpeg
