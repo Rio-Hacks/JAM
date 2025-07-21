@@ -26,11 +26,16 @@ def get_random_song():
 async def play_random(vc):
     song = get_random_song()
     if song:
-        source = FFmpegPCMAudio(str(song))
-        vc.play(source, after=lambda e: bot.loop.create_task(play_random(vc)))
-        print(f"🎵 Now playing: {song.name}")
+        print(f"▶️ Trying to play: {song.name}")
+        try:
+            source = FFmpegPCMAudio(str(song))
+            vc.play(source, after=lambda e: bot.loop.create_task(play_random(vc)))
+            print(f"🎵 Now playing: {song.name}")
+        except Exception as e:
+            print(f"❌ Error playing {song.name}: {e}")
     else:
         print("⚠️ No songs found in 'songs/' folder.")
+
 
 async def connect_and_play():
     guild = bot.get_guild(GUILD_ID)
